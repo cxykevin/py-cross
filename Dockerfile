@@ -52,6 +52,7 @@ RUN echo "Downloading Python-$PYTHON_VERSION.tar.xz..." && \
     # --with-system-expat: 使用系统安装的 expat。
     # --with-tcltk: 启用 Tcl/Tk 支持。
     # --with-sqlite3: 启用 SQLite3 支持。
+    # --disable-test-modules: 禁用测试模块，减小安装体积。
     ./configure --prefix=/mnt/us/python313 \
                 --enable-optimizations \
                 --with-lto \
@@ -61,6 +62,7 @@ RUN echo "Downloading Python-$PYTHON_VERSION.tar.xz..." && \
                 --with-system-expat \
                 --with-tcltk \
                 --with-sqlite3 \
+                --disable-test-modules \
                 && \
     echo "Compiling Python (this may take a while)..." && \
     make -j$(nproc) && \
@@ -86,7 +88,7 @@ RUN mkdir -p /mnt/us/python313/lib && \
         # 忽略 ldd 的错误输出，只处理成功找到的依赖
         ldd "$target" 2>/dev/null | grep "=>" | awk '{print $3}' | while read -r lib_path; do \
             # 仅收集不在目标 lib 目录中的库，避免重复和不必要的复制
-            if [[ "$lib_path" != "/mnt/us/python313/lib/* ]]; then \
+            if [[ "$lib_path" != "/mnt/us/python313/lib/*" ]]; then \
                 # 解析符号链接，获取真实路径，并添加到列表中
                 readlink -f "$lib_path" >> /tmp/deps.list; \
             fi; \
