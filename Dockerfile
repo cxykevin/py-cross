@@ -1,5 +1,5 @@
 # 使用 Alpine Linux 的 ARMv7 基础镜像
-FROM alpine/armv7:latest
+FROM alpine:latest
 
 # 1. 安装编译 Python 所需的依赖，以及用户之前要求的 tcl/tk 和 sqlite-dev
 # build-base 包含了 gcc、make 等基本编译工具
