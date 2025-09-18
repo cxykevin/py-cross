@@ -9,7 +9,7 @@ FROM alpine:latest
 # xz-dev 用于解压 .tar.xz 格式的 Python 源代码
 # wget 用于下载源代码
 # ncurses-dev 是 readline-dev 的依赖
-# patchelf 用于修改 ELF 文件的 RPATH
+# patchelf 用于修改 ELF 文件的 RPATH 和 interpreter
 RUN apk update && \
     apk add --no-cache \
     build-base \
@@ -64,6 +64,7 @@ RUN echo "Downloading Python-$PYTHON_VERSION.tar.xz..." && \
                 --disable-test-modules \
                 && \
     echo "Compiling Python (this may take a while)..." && \
+    # 保留了 || true，即使编译失败也会继续
     make -j$(nproc) -k || true && \
     echo "Installing Python..." && \
     make install && \
@@ -106,6 +107,11 @@ RUN mkdir -p /mnt/us/python313/lib && \
     patchelf --set-rpath '$ORIGIN/../lib' /mnt/us/python313/bin/python$PYTHON_MAJOR_MINOR && \
     #    对于 /mnt/us/python313/lib/libpython3.13.so，RPATH 设置为 '$ORIGIN'，即 /mnt/us/python313/lib
     patchelf --set-rpath '$ORIGIN' /mnt/us/python313/lib/libpython$PYTHON_MAJOR_MINOR.so && \
+    #    **新增：设置 libpython 的动态链接器**
+    #    这里假设你的 Alpine ARMv7 系统使用 /lib/ld-musl-armhf.so.1 作为动态链接器。
+    #    如果你的系统是软浮点（armel），则可能需要改为 /lib/ld-musl-armel.so.1。
+    #    你可以在容器内运行 `readlink -f /lib/ld-musl-*.so.1` 来确认正确的路径。
+    patchelf --set-interpreter /lib/ld-musl-armhf.so.1 /mnt/us/python313/lib/libpython$PYTHON_MAJOR_MINOR.so && \
     #    对于动态加载模块（如 _ssl.so），RPATH 设置为 '$ORIGIN/../../..'，即 /mnt/us/python313/lib
     find /mnt/us/python313/lib/python$PYTHON_MAJOR_MINOR/lib-dynload -name "*.so" -exec patchelf --set-rpath '$ORIGIN/../../..' {} \;
 
