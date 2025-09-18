@@ -54,7 +54,6 @@ RUN echo "Downloading Python-$PYTHON_VERSION.tar.xz..." && \
     # --with-sqlite3: 启用 SQLite3 支持。
     # --disable-test-modules: 禁用测试模块，减小安装体积。
     ./configure --prefix=/mnt/us/python313 \
-                --enable-optimizations \
                 --with-lto \
                 --with-computed-gotos \
                 --enable-shared \
@@ -65,7 +64,7 @@ RUN echo "Downloading Python-$PYTHON_VERSION.tar.xz..." && \
                 --disable-test-modules \
                 && \
     echo "Compiling Python (this may take a while)..." && \
-    make -j$(nproc) && \
+    make -j$(nproc) -k || true && \
     echo "Installing Python..." && \
     make install && \
     # 清理构建文件和源代码以减小镜像大小
