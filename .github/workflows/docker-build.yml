@@ -31,14 +31,17 @@ jobs:
           context: . # Dockerfile 所在的目录
           platforms: linux/arm/v7 # 指定目标平台为 ARMv7
           push: false # 这里设置为 false，表示只构建不推送到镜像仓库。
+          load: true # <--- **关键修改：添加这一行，将构建的镜像加载到本地 Docker 守护进程**
           tags: my-alpine-armv7l-python-self-contained-image:latest # 镜像标签
           file: ./Dockerfile # 指定 Dockerfile 路径，如果不是默认的 './Dockerfile'
-          # 输出构建的镜像 ID，以便后续步骤使用
-          outputs: type=image,name=my-alpine-armv7l-python-self-contained-image:latest,push=false
+          # outputs 参数在这里可以移除，因为 load: true 已经将镜像加载到本地，
+          # 并且 docker images -q 就可以找到它了。
+          # outputs: type=image,name=my-alpine-armv7l-python-self-contained-image:latest,push=false
 
       - name: 导出 Python 安装目录
         run: |
           # 获取构建的镜像 ID
+          # 现在因为 load: true，这个命令应该能正常工作
           IMAGE_ID=$(docker images -q my-alpine-armv7l-python-self-contained-image:latest)
           if [ -z "$IMAGE_ID" ]; then
             echo "Error: Image ID not found for my-alpine-armv7l-python-self-contained-image:latest"
