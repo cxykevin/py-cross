@@ -81,31 +81,21 @@ RUN mkdir -p /mnt/us/python313/lib && \
     # 将 Python 安装的 lib 目录添加到 LD_LIBRARY_PATH，以便 ldd 能够找到内部库
     export LD_LIBRARY_PATH=/mnt/us/python313/lib:$LD_LIBRARY_PATH && \
     \
-    # 定义一个函数来查找并收集依赖
-    collect_deps() { \
-        local target="$1"; \
-        # 忽略 ldd 的错误输出，只处理成功找到的依赖
-        ldd "$target" 2>/dev/null | grep "=>" | awk '{print $3}' | while read -r lib_path; do \
-            # 仅收集不在目标 lib 目录中的库，避免重复和不必要的复制
-            if [[ "$lib_path" != "/mnt/us/python313/lib/*" ]]; then \
-                # 解析符号链接，获取真实路径，并添加到列表中
-                readlink -f "$lib_path" >> /tmp/deps.list; \
-            fi; \
-        done; \
-    }; \
-    \
     # 收集主 Python 可执行文件的依赖
-    collect_deps /mnt/us/python313/bin/python$PYTHON_MAJOR_MINOR && \
+    ldd /mnt/us/python313/bin/python$PYTHON_MAJOR_MINOR 2>/dev/null | grep "=>" | awk '{print $3}' >> /tmp/deps.list && \
     # 收集 Python 共享库的依赖
-    collect_deps /mnt/us/python313/lib/libpython$PYTHON_MAJOR_MINOR.so && \
+    ldd /mnt/us/python313/lib/libpython$PYTHON_MAJOR_MINOR.so 2>/dev/null | grep "=>" | awk '{print $3}' >> /tmp/deps.list && \
     # 收集动态加载模块的依赖
-    find /mnt/us/python313/lib/python$PYTHON_MAJOR_MINOR/lib-dynload -name "*.so" -exec sh -c 'collect_deps "{}"' \; && \
+    find /mnt/us/python313/lib/python$PYTHON_MAJOR_MINOR/lib-dynload -name "*.so" -exec ldd "{}" 2>/dev/null \; | grep "=>" | awk '{print $3}' >> /tmp/deps.list && \
     # 显式添加 musl libc (libc.so) 的真实路径
     readlink -f /lib/libc.so.* >> /tmp/deps.list && \
     \
     # 将收集到的唯一库复制到最终目标目录
     sort -u /tmp/deps.list | while read -r unique_lib_path; do \
-        cp -L "$unique_lib_path" /mnt/us/python313/lib/; \
+        # 仅复制不在目标 lib 目录中的库，避免重复和不必要的复制
+        if [[ "$unique_lib_path" != "/mnt/us/python313/lib/"* ]]; then \
+            cp -L "$unique_lib_path" /mnt/us/python313/lib/; \
+        fi; \
     done && \
     # 清理临时文件
     rm -f /tmp/deps.list; \
@@ -120,8 +110,9 @@ RUN mkdir -p /mnt/us/python313/lib && \
     find /mnt/us/python313/lib/python$PYTHON_MAJOR_MINOR/lib-dynload -name "*.so" -exec patchelf --set-rpath '$ORIGIN/../../..' {} \;
 
 # 6. 创建软链接，方便使用 python3 和 pip 命令
-RUN ln -s /mnt/us/python313/bin/python$PYTHON_MAJOR_MINOR /mnt/us/python313/bin/python3 && \
-    ln -s /mnt/us/python313/bin/pip$PYTHON_MAJOR_MINOR /mnt/us/python313/bin/pip
+#    使用 -f 选项强制创建链接，如果已存在则覆盖
+RUN ln -sf /mnt/us/python313/bin/python$PYTHON_MAJOR_MINOR /mnt/us/python313/bin/python3 && \
+    ln -sf /mnt/us/python313/bin/pip$PYTHON_MAJOR_MINOR /mnt/us/python313/bin/pip
 
 # 7. 设置 PATH 环境变量，以便可以直接运行 python3 和 pip
 ENV PATH="/mnt/us/python313/bin:$PATH"
